@@ -2,18 +2,18 @@ package wsc
 
 import (
 	"errors"
-	"github.com/gorilla/websocket"
-	"github.com/jpillora/backoff"
-	"github.com/panjf2000/ants/v2"
-	"math/rand"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/jpillora/backoff"
+	"github.com/panjf2000/ants/v2"
 )
 
 var (
-	CloseErr  = errors.New("connection closed")
-	BufferErr = errors.New("message buffer is full")
+	ErrClose  = errors.New("connection closed")
+	ErrBuffer = errors.New("message buffer is full")
 )
 
 type Wsc struct {
@@ -31,7 +31,7 @@ type Wsc struct {
 	onClose func(code int, text string)
 
 	// 发送Text消息成功回调
-	onTextMessageSent func(message string)
+	onTextMessageSent func(message []byte)
 	// 发送Binary消息成功回调
 	onBinaryMessageSent func(data []byte)
 
@@ -43,7 +43,7 @@ type Wsc struct {
 	// 接受到Pong消息回调
 	onPongReceived func(appData string)
 	// 接受到Text消息回调
-	onTextMessageReceived func(message string)
+	onTextMessageReceived func(message []byte)
 	// 接受到Binary消息回调
 	onBinaryMessageReceived func(data []byte)
 	// 心跳
@@ -84,8 +84,6 @@ type WebSocket struct {
 	sendMu *sync.Mutex
 	// 发送消息缓冲池
 	sendChan chan *wsMsg
-	// 连接上
-	connected chan struct{}
 }
 
 type wsMsg struct {
@@ -137,7 +135,7 @@ func (wsc *Wsc) OnClose(f func(code int, text string)) {
 	wsc.onClose = f
 }
 
-func (wsc *Wsc) OnTextMessageSent(f func(message string)) {
+func (wsc *Wsc) OnTextMessageSent(f func(message []byte)) {
 	wsc.onTextMessageSent = f
 }
 
@@ -157,7 +155,7 @@ func (wsc *Wsc) OnPongReceived(f func(appData string)) {
 	wsc.onPongReceived = f
 }
 
-func (wsc *Wsc) OnTextMessageReceived(f func(message string)) {
+func (wsc *Wsc) OnTextMessageReceived(f func(message []byte)) {
 	wsc.onTextMessageReceived = f
 }
 
@@ -185,7 +183,6 @@ func (wsc *Wsc) Connect() {
 		Factor: wsc.Config.RecFactor,
 		Jitter: true,
 	}
-	rand.Seed(time.Now().UTC().UnixNano())
 	for {
 		var err error
 		nextRec := b.Duration()
@@ -264,15 +261,13 @@ func (wsc *Wsc) readLoop() {
 		// 收到TextMessage回调
 		case websocket.TextMessage:
 			if wsc.onTextMessageReceived != nil {
-				wsc.onTextMessageReceived(string(message))
+				wsc.onTextMessageReceived(message)
 			}
-			break
 		// 收到BinaryMessage回调
 		case websocket.BinaryMessage:
 			if wsc.onBinaryMessageReceived != nil {
 				wsc.onBinaryMessageReceived(message)
 			}
-			break
 		}
 	}
 }
@@ -298,14 +293,12 @@ func (wsc *Wsc) writeLoop() {
 				return
 			case websocket.TextMessage:
 				if wsc.onTextMessageSent != nil {
-					wsc.onTextMessageSent(string(wsMsg.msg))
+					wsc.onTextMessageSent(wsMsg.msg)
 				}
-				break
 			case websocket.BinaryMessage:
 				if wsc.onBinaryMessageSent != nil {
 					wsc.onBinaryMessageSent(wsMsg.msg)
 				}
-				break
 			}
 		case <-keepaliveTick.C:
 			if wsc.onKeepalive != nil {
@@ -319,7 +312,7 @@ func (wsc *Wsc) writeLoop() {
 // SendTextMessage 发送TextMessage消息
 func (wsc *Wsc) SendTextMessage(message string) error {
 	if !wsc.IsConnected() {
-		return CloseErr
+		return ErrClose
 	}
 	// 丢入缓冲通道处理
 	select {
@@ -328,7 +321,7 @@ func (wsc *Wsc) SendTextMessage(message string) error {
 		msg: []byte(message),
 	}:
 	default:
-		return BufferErr
+		return ErrBuffer
 	}
 	return nil
 }
@@ -336,7 +329,7 @@ func (wsc *Wsc) SendTextMessage(message string) error {
 // SendBinaryMessage 发送BinaryMessage消息
 func (wsc *Wsc) SendBinaryMessage(data []byte) error {
 	if !wsc.IsConnected() {
-		return CloseErr
+		return ErrClose
 	}
 	// 丢入缓冲通道处理
 	select {
@@ -345,7 +338,7 @@ func (wsc *Wsc) SendBinaryMessage(data []byte) error {
 		msg: data,
 	}:
 	default:
-		return BufferErr
+		return ErrBuffer
 	}
 	return nil
 }
@@ -355,7 +348,7 @@ func (wsc *Wsc) send(messageType int, data []byte) error {
 	wsc.WebSocket.sendMu.Lock()
 	defer wsc.WebSocket.sendMu.Unlock()
 	if !wsc.IsConnected() {
-		return CloseErr
+		return ErrClose
 	}
 	var err error
 	// 超时时间

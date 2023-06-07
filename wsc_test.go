@@ -43,8 +43,8 @@ func TestConnect(t *testing.T) {
 		log.Println("OnClose: ", code, text)
 		done <- true
 	})
-	ws.OnTextMessageSent(func(message string) {
-		log.Println("OnTextMessageSent: ", message)
+	ws.OnTextMessageSent(func(message []byte) {
+		log.Println("OnTextMessageSent: ", string(message))
 	})
 	ws.OnBinaryMessageSent(func(data []byte) {
 		log.Println("OnBinaryMessageSent: ", string(data))
@@ -58,8 +58,8 @@ func TestConnect(t *testing.T) {
 	ws.OnPongReceived(func(appData string) {
 		log.Println("OnPongReceived: ", appData)
 	})
-	ws.OnTextMessageReceived(func(message string) {
-		log.Println("OnTextMessageReceived: ", message)
+	ws.OnTextMessageReceived(func(message []byte) {
+		log.Println("OnTextMessageReceived: ", string(message))
 	})
 	ws.OnBinaryMessageReceived(func(data []byte) {
 		log.Println("OnBinaryMessageReceived: ", string(data))
@@ -69,10 +69,7 @@ func TestConnect(t *testing.T) {
 	})
 	// 开始连接
 	ws.Connect()
-	for {
-		select {
-		case <-done:
-			return
-		}
+	for range done {
+		return
 	}
 }
