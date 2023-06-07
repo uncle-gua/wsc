@@ -1,4 +1,4 @@
-module github.com/wyy-go/wsc
+module github.com/uncle-gua/wsc
 
 go 1.16
 
