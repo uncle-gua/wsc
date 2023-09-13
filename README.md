@@ -17,12 +17,12 @@
 
 Use go get.
 ```bash
-    go get github.com/wyy-go/wlog
+    go get github.com/wyy-go/wsc
 ```
 
 Then import the package into your own code.
 ```bash
-    import "github.com/wyy-go/wlog"
+    import "github.com/wyy-go/wsc"
 ```
 
 ### Example
