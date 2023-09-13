@@ -101,7 +101,7 @@ func New(url string) *Wsc {
 			MaxRecTime:        60 * time.Second,
 			RecFactor:         1.5,
 			MessageBufferSize: 256,
-			KeepaliveTime:     40,
+			KeepaliveTime:     300,
 			EnableReconnect:   true,
 		},
 		WebSocket: &WebSocket{
@@ -301,6 +301,7 @@ func (wsc *Wsc) writeLoop() {
 				}
 			}
 		case <-keepaliveTick.C:
+			wsc.WebSocket.Conn.WriteMessage(websocket.PingMessage, nil)
 			if wsc.onKeepalive != nil {
 				wsc.onKeepalive()
 			}
