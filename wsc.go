@@ -8,7 +8,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/jpillora/backoff"
-	"github.com/panjf2000/ants/v2"
 )
 
 var (
@@ -233,13 +232,9 @@ func (wsc *Wsc) Connect() {
 			return defaultPongHandler(appData)
 		})
 		// 开启协程读
-		_ = ants.Submit(func() {
-			wsc.writeLoop()
-		})
+		go wsc.writeLoop()
 		// 开启协程写
-		_ = ants.Submit(func() {
-			wsc.readLoop()
-		})
+		go wsc.readLoop()
 
 		return
 	}
@@ -365,9 +360,7 @@ func (wsc *Wsc) closeAndRecConn() {
 	}
 	wsc.clean()
 	if wsc.Config.EnableReconnect {
-		_ = ants.Submit(func() {
-			wsc.Connect()
-		})
+		go wsc.Connect()
 	}
 }
 
