@@ -346,11 +346,12 @@ func (wsc *Wsc) send(messageType int, data []byte) error {
 	if !wsc.IsConnected() {
 		return ErrClose
 	}
-	var err error
 	// 超时时间
-	_ = wsc.WebSocket.Conn.SetWriteDeadline(time.Now().Add(wsc.Config.WriteWait))
-	err = wsc.WebSocket.Conn.WriteMessage(messageType, data)
-	return err
+	deadline := time.Now().Add(wsc.Config.WriteWait)
+	if err := wsc.WebSocket.Conn.SetWriteDeadline(deadline); err != nil {
+		return err
+	}
+	return wsc.WebSocket.Conn.WriteMessage(messageType, data)
 }
 
 // closeAndRecConn 断线重连
@@ -387,8 +388,9 @@ func (wsc *Wsc) clean() {
 		return
 	}
 	wsc.WebSocket.connMu.Lock()
+	defer wsc.WebSocket.connMu.Unlock()
+
 	wsc.WebSocket.isConnected = false
 	_ = wsc.WebSocket.Conn.Close()
 	close(wsc.WebSocket.sendChan)
-	wsc.WebSocket.connMu.Unlock()
 }
