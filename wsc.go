@@ -322,6 +322,23 @@ func (wsc *Wsc) SendTextMessage(message string) error {
 	return nil
 }
 
+// SendTextMessage 发送TextMessage消息
+func (wsc *Wsc) SendByteMessage(message []byte) error {
+	if !wsc.IsConnected() {
+		return ErrClose
+	}
+	// 丢入缓冲通道处理
+	select {
+	case wsc.WebSocket.sendChan <- &wsMsg{
+		t:   websocket.TextMessage,
+		msg: message,
+	}:
+	default:
+		return ErrBuffer
+	}
+	return nil
+}
+
 // SendBinaryMessage 发送BinaryMessage消息
 func (wsc *Wsc) SendBinaryMessage(data []byte) error {
 	if !wsc.IsConnected() {
