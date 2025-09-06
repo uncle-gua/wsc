@@ -213,7 +213,7 @@ func (wsc *Wsc) Connect() {
 				wsc.onClose(code, text)
 			}
 			wsc.clean()
-			if wsc.Config.EnableReconnect && !wsc.IsConnected() && code != 1000 {
+			if wsc.Config.EnableReconnect && code != 1000 {
 				go wsc.Connect()
 			}
 			return result
