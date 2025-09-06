@@ -209,9 +209,13 @@ func (wsc *Wsc) Connect() {
 		defaultCloseHandler := wsc.WebSocket.Conn.CloseHandler()
 		wsc.WebSocket.Conn.SetCloseHandler(func(code int, text string) error {
 			result := defaultCloseHandler(code, text)
-			wsc.clean()
 			if wsc.onClose != nil {
 				wsc.onClose(code, text)
+			}
+			if code != 1000 {
+				wsc.closeAndRecConn()
+			} else {
+				wsc.clean()
 			}
 			return result
 		})
